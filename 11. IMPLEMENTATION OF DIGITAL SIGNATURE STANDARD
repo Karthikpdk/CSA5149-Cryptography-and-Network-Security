@@ -1,0 +1,125 @@
+#include <stdio.h>
+#include <gmp.h>
+#include <stdlib.h>
+#include <time.h>
+
+// Function to generate a probable prime greater than 'start'
+void getNextPrime(mpz_t result, const char *start) {
+    mpz_t test;
+    mpz_init_set_str(test, start, 10);
+
+    while (!mpz_probab_prime_p(test, 25)) {
+        mpz_add_ui(test, test, 1);
+    }
+    mpz_set(result, test);
+    mpz_clear(test);
+}
+
+// Function to find a prime factor of n
+void findQ(mpz_t result, mpz_t n) {
+    mpz_t start, two;
+    mpz_init_set_ui(start, 2);
+    mpz_init_set_ui(two, 2);
+
+    while (!mpz_probab_prime_p(n, 25)) {
+        while (mpz_divisible_p(n, start) == 0) {
+            mpz_add_ui(start, start, 1);
+        }
+        mpz_divexact(n, n, start);
+    }
+    mpz_set(result, n);
+    mpz_clear(start);
+    mpz_clear(two);
+}
+
+// Function to get the generator g
+void getGen(mpz_t g, mpz_t p, mpz_t q, gmp_randstate_t state) {
+    mpz_t h, p_minus_1_div_q;
+    mpz_init(h);
+    mpz_init(p_minus_1_div_q);
+
+    mpz_sub_ui(p_minus_1_div_q, p, 1);
+    mpz_divexact(p_minus_1_div_q, p_minus_1_div_q, q);
+
+    do {
+        mpz_urandomm(h, state, p);
+    } while (mpz_cmp_ui(h, 0) == 0);
+
+    mpz_powm(g, h, p_minus_1_div_q, p);
+
+    mpz_clear(h);
+    mpz_clear(p_minus_1_div_q);
+}
+
+int main() {
+    gmp_randstate_t state;
+    gmp_randinit_default(state);
+    gmp_randseed_ui(state, time(NULL));
+
+    mpz_t p, q, g, x, y, k, r, hashVal, kInv, s, w, u1, u2, v;
+    mpz_inits(p, q, g, x, y, k, r, hashVal, kInv, s, w, u1, u2, v, NULL);
+
+    getNextPrime(p, "10600"); // approximate prime
+    findQ(q, p);
+    getGen(g, p, q, state);
+
+    printf("\nSimulation of Digital Signature Algorithm\n");
+    printf("\nGlobal public key components are:\n");
+    gmp_printf("p is: %Zd\n", p);
+    gmp_printf("q is: %Zd\n", q);
+    gmp_printf("g is: %Zd\n", g);
+
+    mpz_urandomm(x, state, q);
+    mpz_powm(y, g, x, p);
+
+    mpz_urandomm(k, state, q);
+    mpz_powm(r, g, k, p);
+    mpz_mod(r, r, q);
+
+    mpz_urandomm(hashVal, state, p);
+    mpz_invert(kInv, k, q);
+
+    mpz_mul(s, x, r);
+    mpz_add(s, s, hashVal);
+    mpz_mul(s, s, kInv);
+    mpz_mod(s, s, q);
+
+    printf("\nSecret information are:\n");
+    gmp_printf("x (private) is: %Zd\n", x);
+    gmp_printf("k (secret) is: %Zd\n", k);
+    gmp_printf("y (public) is: %Zd\n", y);
+    gmp_printf("h (rndhash) is: %Zd\n", hashVal);
+
+    printf("\nGenerating digital signature:\n");
+    gmp_printf("r is: %Zd\n", r);
+    gmp_printf("s is: %Zd\n", s);
+
+    mpz_invert(w, s, q);
+    mpz_mul(u1, hashVal, w);
+    mpz_mod(u1, u1, q);
+
+    mpz_mul(u2, r, w);
+    mpz_mod(u2, u2, q);
+
+    mpz_powm(u1, g, u1, p);
+    mpz_powm(u2, y, u2, p);
+    mpz_mul(v, u1, u2);
+    mpz_mod(v, v, p);
+    mpz_mod(v, v, q);
+
+    printf("\nVerifying digital signature (checkpoints):\n");
+    gmp_printf("w is: %Zd\n", w);
+    gmp_printf("u1 is: %Zd\n", u1);
+    gmp_printf("u2 is: %Zd\n", u2);
+    gmp_printf("v is: %Zd\n", v);
+
+    if (mpz_cmp(v, r) == 0) {
+        printf("\nSuccess: digital signature is verified!\n");
+    } else {
+        printf("\nError: incorrect digital signature\n");
+    }
+
+    mpz_clears(p, q, g, x, y, k, r, hashVal, kInv, s, w, u1, u2, v, NULL);
+    gmp_randclear(state);
+    return 0;
+}
