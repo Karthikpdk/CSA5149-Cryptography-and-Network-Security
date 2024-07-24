@@ -1,0 +1,49 @@
+#include <stdio.h>
+#include <string.h>
+
+void rail_fence_encrypt(const char *input, char *cipher) {
+    int i, j = 0, len = strlen(input);
+    for (i = 0; i < len; i++) {
+        if (i % 2 == 0)
+            cipher[j++] = input[i];
+    }
+    for (i = 0; i < len; i++) {
+        if (i % 2 == 1)
+            cipher[j++] = input[i];
+    }
+    cipher[j] = '\0';
+}
+
+void rail_fence_decrypt(const char *cipher, char *output) {
+    int i, j = 0, len = strlen(cipher), k;
+    if (len % 2 == 0)
+        k = len / 2;
+    else
+        k = (len / 2) + 1;
+    for (i = 0; i < k; i++) {
+        output[j] = cipher[i];
+        j += 2;
+    }
+    for (i = k, j = 1; i < len; i++) {
+        output[j] = cipher[i];
+        j += 2;
+    }
+    output[len] = '\0';
+}
+
+int main() {
+    char a[100], c[100], d[100];
+
+    printf("\n\t\tRAIL FENCE TECHNIQUE\n");
+    printf("\nEnter the input string: ");
+    fgets(a, sizeof(a), stdin);
+    a[strcspn(a, "\n")] = '\0'; // Remove newline character
+
+    rail_fence_encrypt(a, c);
+    printf("\nCipher text after applying rail fence: %s\n", c);
+
+    rail_fence_decrypt(c, d);
+    printf("Text after decryption: %s\n", d);
+
+    return 0;
+}
