@@ -1,0 +1,68 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/des.h>
+#include <openssl/rand.h>
+void handleErrors() {
+    ERR_print_errors_fp(stderr);
+    abort();
+}
+
+void generateKey(DES_cblock *key, DES_key_schedule *schedule) {
+    if (!RAND_bytes((unsigned char *)key, sizeof(DES_cblock))) {
+        handleErrors();
+    }
+    if (DES_set_key_checked(key, schedule) != 0) {
+        fprintf(stderr, "Key error, exiting.\n");
+        exit(1);
+    }
+}
+
+void encrypt(DES_cblock *key, DES_key_schedule *schedule, const char *plaintext, unsigned char *ciphertext) {
+    DES_cblock input;
+    DES_cblock output;
+    size_t len = strlen(plaintext);
+    size_t i;
+
+    for (i = 0; i < len; i += 8) {
+        memcpy(input, plaintext + i, 8);
+        DES_ecb_encrypt(&input, &output, schedule, DES_ENCRYPT);
+        memcpy(ciphertext + i, output, 8);
+    }
+}
+
+void decrypt(DES_cblock *key, DES_key_schedule *schedule, const unsigned char *ciphertext, char *plaintext, size_t len) {
+    DES_cblock input;
+    DES_cblock output;
+    size_t i;
+
+    for (i = 0; i < len; i += 8) {
+        memcpy(input, ciphertext + i, 8);
+        DES_ecb_encrypt(&input, &output, schedule, DES_DECRYPT);
+        memcpy(plaintext + i, output, 8);
+    }
+}
+int main() {
+    DES_cblock key;
+    DES_key_schedule schedule;
+    generateKey(&key, &schedule);
+    char plaintext[128];
+    printf("Enter message to encrypt: ");
+    fgets(plaintext, sizeof(plaintext), stdin);
+    plaintext[strcspn(plaintext, "\n")] = '\0';
+    size_t len = ((strlen(plaintext) + 7) / 8) * 8;
+    unsigned char *ciphertext = (unsigned char *)malloc(len);
+    char *decryptedtext = (char *)malloc(len + 1);
+    encrypt(&key, &schedule, plaintext, ciphertext);
+    printf("Encrypted message: ");
+    for (size_t i = 0; i < len; i++) {
+        printf("%02x", ciphertext[i]);
+    }
+    printf("\n");
+    decrypt(&key, &schedule, ciphertext, decryptedtext, len);
+    decryptedtext[len] = '\0';
+    printf("Decrypted message: %s\n", decryptedtext);
+    free(ciphertext);
+    free(decryptedtext);
+    return 0;
+}
