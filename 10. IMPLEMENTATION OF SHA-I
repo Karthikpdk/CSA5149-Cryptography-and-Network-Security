@@ -1,0 +1,37 @@
+#include <stdio.h>
+#include <openssl/sha.h>
+
+// Function to convert bytes to hexadecimal string
+void bytesToHex(unsigned char *bytes, int length, char *hexString) {
+    const char *hexDigits = "0123456789ABCDEF";
+    for (int i = 0; i < length; i++) {
+        hexString[i * 2] = hexDigits[(bytes[i] >> 4) & 0x0F];
+        hexString[i * 2 + 1] = hexDigits[bytes[i] & 0x0F];
+    }
+    hexString[length * 2] = '\0';
+}
+
+// Function to compute SHA-1 hash and print it
+void computeAndPrintSHA1(const char *input) {
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    char hexOutput[SHA_DIGEST_LENGTH * 2 + 1];
+
+    SHA1((unsigned char *)input, strlen(input), hash);
+    bytesToHex(hash, SHA_DIGEST_LENGTH, hexOutput);
+
+    printf("SHA1(\"%s\") = %s\n", input, hexOutput);
+}
+
+int main() {
+    const char *inputs[] = {
+        "",
+        "abc",
+        "abcdefghijklmnopqrstuvwxyz"
+    };
+
+    for (int i = 0; i < sizeof(inputs) / sizeof(inputs[0]); i++) {
+        computeAndPrintSHA1(inputs[i]);
+    }
+
+    return 0;
+}
