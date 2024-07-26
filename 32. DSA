@@ -1,0 +1,45 @@
+#include <openssl/evp.h>
+#include <openssl/dsa.h>
+#include <openssl/err.h>
+#include <stdio.h>
+#include <string.h>
+
+void handleErrors(void) {
+    ERR_print_errors_fp(stderr);
+    abort();
+}
+
+int main(void) {
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
+
+    DSA *dsa = DSA_new();
+    if (!DSA_generate_parameters_ex(dsa, 1024, NULL, 0, NULL, NULL, NULL))
+        handleErrors();
+    if (!DSA_generate_key(dsa))
+        handleErrors();
+
+    unsigned char message[] = "This is a test message for DSA.";
+    unsigned int message_len = strlen((char*)message);
+
+    unsigned char signature[DSA_size(dsa)];
+    unsigned int sig_len = 0;
+    if (!DSA_sign(0, message, message_len, signature, &sig_len, dsa))
+        handleErrors();
+
+    printf("Signature: ");
+    for (unsigned int i = 0; i < sig_len; i++)
+        printf("%02x", signature[i]);
+    printf("\n");
+
+    if (DSA_verify(0, message, message_len, signature, sig_len, dsa) == 1)
+        printf("Signature is valid.\n");
+    else
+        printf("Signature is invalid.\n");
+
+    DSA_free(dsa);
+    EVP_cleanup();
+    ERR_free_strings();
+
+    return 0;
+}
