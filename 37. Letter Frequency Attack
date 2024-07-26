@@ -1,0 +1,94 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+#define MAX_CIPHERTEXT_LENGTH 1000
+#define TOP_N 10
+
+// Frequency of letters in English (approximate)
+const double english_freq[ALPHABET_SIZE] = {
+    8.167, 1.492, 2.782, 4.253, 12.702, 2.228, 2.015, 6.094, 6.966, 0.153, 
+    0.772, 4.025, 2.406, 6.749, 7.507, 1.929, 0.095, 5.987, 6.317, 9.056, 
+    2.758, 0.978, 2.560, 0.150, 1.929, 0.074, 1.607, 0.000 // Frequencies of a-z
+};
+
+// Function to calculate the frequency of each letter in the ciphertext
+void calculate_frequency(const char *ciphertext, double *frequency) {
+    int count[ALPHABET_SIZE] = {0};
+    int length = strlen(ciphertext);
+
+    for (int i = 0; i < length; i++) {
+        if (isalpha(ciphertext[i])) {
+            int index = tolower(ciphertext[i]) - 'a';
+            count[index]++;
+        }
+    }
+
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        frequency[i] = (double)count[i] / length * 100;
+    }
+}
+
+// Function to print the possible plaintexts based on letter frequency
+void print_possible_plaintexts(const char *ciphertext, const double *frequency) {
+    char mapping[ALPHABET_SIZE];
+    char plaintext[MAX_CIPHERTEXT_LENGTH];
+    double best_score = 1e9; // Arbitrarily large number
+    int best_mapping[ALPHABET_SIZE];
+
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        best_mapping[i] = i;
+    }
+
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        for (int j = 0; j < ALPHABET_SIZE; j++) {
+            if (i == j) continue;
+            double score = 0.0;
+            for (int k = 0; k < ALPHABET_SIZE; k++) {
+                score += fabs(frequency[k] - english_freq[(k + i - j + ALPHABET_SIZE) % ALPHABET_SIZE]);
+            }
+            if (score < best_score) {
+                best_score = score;
+                for (int k = 0; k < ALPHABET_SIZE; k++) {
+                    mapping[k] = (k + i - j + ALPHABET_SIZE) % ALPHABET_SIZE;
+                }
+                for (int k = 0; k < ALPHABET_SIZE; k++) {
+                    best_mapping[k] = mapping[k];
+                }
+            }
+        }
+    }
+
+    // Print the top N possible plaintexts
+    for (int n = 0; n < TOP_N; n++) {
+        for (int i = 0; i < strlen(ciphertext); i++) {
+            if (isalpha(ciphertext[i])) {
+                int index = tolower(ciphertext[i]) - 'a';
+                plaintext[i] = (isupper(ciphertext[i]) ? 'A' : 'a') + best_mapping[index];
+            } else {
+                plaintext[i] = ciphertext[i];
+            }
+        }
+        plaintext[strlen(ciphertext)] = '\0';
+        printf("Possible plaintext #%d: %s\n", n + 1, plaintext);
+    }
+}
+
+int main() {
+    char ciphertext[MAX_CIPHERTEXT_LENGTH];
+    double frequency[ALPHABET_SIZE];
+
+    printf("Enter the ciphertext: ");
+    fgets(ciphertext, sizeof(ciphertext), stdin);
+    ciphertext[strcspn(ciphertext, "\n")] = '\0'; // Remove trailing newline
+
+    // Calculate the frequency of letters in the ciphertext
+    calculate_frequency(ciphertext, frequency);
+
+    // Print possible plaintexts based on frequency analysis
+    print_possible_plaintexts(ciphertext, frequency);
+
+    return 0;
+}
+
