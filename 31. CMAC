@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+#define AES_BLOCK_SIZE 16
+
+// XOR constants for 128-bit blocks
+const uint8_t Rb_128 = 0x87;
+
+// Dummy AES encryption function for demonstration purposes
+void AES_encrypt(const uint8_t *input, const uint8_t *key, uint8_t *output) {
+    // Normally, you would use a real AES library to encrypt the input with the key
+    // Here, we simply copy the input to output for demonstration purposes
+    memcpy(output, input, AES_BLOCK_SIZE);
+}
+
+// Left shift by one bit
+void left_shift(uint8_t *input, uint8_t *output, int len) {
+    uint8_t overflow = 0;
+
+    for (int i = len - 1; i >= 0; --i) {
+        uint8_t next_overflow = (input[i] >> 7) & 1;
+        output[i] = (input[i] << 1) | overflow;
+        overflow = next_overflow;
+    }
+}
+
+// Generate CMAC subkeys K1 and K2
+void generate_subkeys(const uint8_t *key, uint8_t *K1, uint8_t *K2) {
+    uint8_t L[AES_BLOCK_SIZE] = {0};
+    uint8_t tmp[AES_BLOCK_SIZE] = {0};
+
+    // Step 1: AES encrypt an all-zero block
+    uint8_t zero_block[AES_BLOCK_SIZE] = {0};
+    AES_encrypt(zero_block, key, L);
+
+    // Step 2: Generate K1
+    left_shift(L, K1, AES_BLOCK_SIZE);
+    if (L[0] & 0x80) {  // If MSB is 1
+        K1[AES_BLOCK_SIZE-1] ^= Rb_128;
+    }
+
+    // Step 3: Generate K2
+    left_shift(K1, K2, AES_BLOCK_SIZE);
+    if (K1[0] & 0x80) {  // If MSB is 1
+        K2[AES_BLOCK_SIZE-1] ^= Rb_128;
+    }
+}
+
+// Print data as hexadecimal
+void print_hex(const char *label, const uint8_t *data, int len) {
+    printf("%s: ", label);
+    for (int i = 0; i < len; ++i) {
+        printf("%02x", data[i]);
+    }
+    printf("\n");
+}
+
+int main() {
+    // Example AES key (16 bytes for AES-128)
+    uint8_t key[AES_BLOCK_SIZE] = {
+        0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+        0xab, 0xf7, 0xcf, 0x3d, 0x4b, 0x73, 0x2d, 0xac
+    };
+
+    uint8_t K1[AES_BLOCK_SIZE] = {0};
+    uint8_t K2[AES_BLOCK_SIZE] = {0};
+
+    generate_subkeys(key, K1, K2);
+
+    print_hex("K1", K1, AES_BLOCK_SIZE);
+    print_hex("K2", K2, AES_BLOCK_SIZE);
+
+    return 0;
+}
