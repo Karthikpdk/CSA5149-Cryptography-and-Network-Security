@@ -1,0 +1,120 @@
+#include <stdio.h>
+#include <string.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+
+#define BLOCK_SIZE 16
+
+void handleErrors(void) {
+    ERR_print_errors_fp(stderr);
+    abort();
+}
+
+void encrypt_decrypt(const char *mode, const unsigned char *key, const unsigned char *iv, 
+                     const unsigned char *input, unsigned char *output, int encrypt) {
+    EVP_CIPHER_CTX *ctx;
+    int len, ciphertext_len;
+
+    // Create and initialize the context
+    if (!(ctx = EVP_CIPHER_CTX_new()))
+        handleErrors();
+
+    // Initialize encryption or decryption operation
+    if (encrypt) {
+        if (strcmp(mode, "ECB") == 0) {
+            if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, NULL))
+                handleErrors();
+        } else if (strcmp(mode, "CBC") == 0) {
+            if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv))
+                handleErrors();
+        } else if (strcmp(mode, "CFB") == 0) {
+            if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_cfb(), NULL, key, iv))
+                handleErrors();
+        }
+        
+        if (1 != EVP_EncryptUpdate(ctx, output, &len, input, strlen((char*)input)))
+            handleErrors();
+        ciphertext_len = len;
+
+        if (1 != EVP_EncryptFinal_ex(ctx, output + len, &len))
+            handleErrors();
+        ciphertext_len += len;
+    } else {
+        if (strcmp(mode, "ECB") == 0) {
+            if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, NULL))
+                handleErrors();
+        } else if (strcmp(mode, "CBC") == 0) {
+            if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv))
+                handleErrors();
+        } else if (strcmp(mode, "CFB") == 0) {
+            if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_cfb(), NULL, key, iv))
+                handleErrors();
+        }
+        
+        if (1 != EVP_DecryptUpdate(ctx, output, &len, input, strlen((char*)input)))
+            handleErrors();
+        ciphertext_len = len;
+
+        if (1 != EVP_DecryptFinal_ex(ctx, output + len, &len))
+            handleErrors();
+        ciphertext_len += len;
+    }
+
+    // Clean up
+    EVP_CIPHER_CTX_free(ctx);
+    output[ciphertext_len] = '\0';
+}
+
+int main() {
+    // Example key and IV
+    unsigned char key[BLOCK_SIZE] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
+                                     0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
+    unsigned char iv[BLOCK_SIZE] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
+                                    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};
+
+    unsigned char plaintext[BLOCK_SIZE * 2] = "This is a test message for DES";
+    unsigned char ciphertext[BLOCK_SIZE * 2 + BLOCK_SIZE];
+    unsigned char decryptedtext[BLOCK_SIZE * 2 + BLOCK_SIZE];
+
+    // Initialize OpenSSL
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
+
+    printf("Plaintext: %s\n", plaintext);
+
+    // Encrypt and decrypt using ECB mode
+    encrypt_decrypt("ECB", key, NULL, plaintext, ciphertext, 1);
+    printf("Ciphertext (ECB): ");
+    for (int i = 0; i < strlen((char*)ciphertext); i++)
+        printf("%02x", ciphertext[i]);
+    printf("\n");
+
+    encrypt_decrypt("ECB", key, NULL, ciphertext, decryptedtext, 0);
+    printf("Decrypted text (ECB): %s\n", decryptedtext);
+
+    // Encrypt and decrypt using CBC mode
+    encrypt_decrypt("CBC", key, iv, plaintext, ciphertext, 1);
+    printf("Ciphertext (CBC): ");
+    for (int i = 0; i < strlen((char*)ciphertext); i++)
+        printf("%02x", ciphertext[i]);
+    printf("\n");
+
+    encrypt_decrypt("CBC", key, iv, ciphertext, decryptedtext, 0);
+    printf("Decrypted text (CBC): %s\n", decryptedtext);
+
+    // Encrypt and decrypt using CFB mode
+    encrypt_decrypt("CFB", key, iv, plaintext, ciphertext, 1);
+    printf("Ciphertext (CFB): ");
+    for (int i = 0; i < strlen((char*)ciphertext); i++)
+        printf("%02x", ciphertext[i]);
+    printf("\n");
+
+    encrypt_decrypt("CFB", key, iv, ciphertext, decryptedtext, 0);
+    printf("Decrypted text (CFB): %s\n", decryptedtext);
+
+    // Cleanup
+    EVP_cleanup();
+    ERR_free_strings();
+
+    return 0;
+}
