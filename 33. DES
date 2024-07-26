@@ -1,0 +1,73 @@
+#include <stdio.h>
+#include <string.h>
+#include <openssl/des.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+
+void handleErrors(void) {
+    ERR_print_errors_fp(stderr);
+    abort();
+}
+
+// Encrypts the plaintext using DES
+void des_encrypt(const unsigned char *key, const unsigned char *plaintext, unsigned char *ciphertext) {
+    DES_key_schedule ks;
+    DES_cblock key2;
+
+    // Convert key to DES_cblock format
+    memcpy(key2, key, 8);
+
+    // Set up the key schedule
+    DES_set_key_unchecked(&key2, &ks);
+
+    // Encrypt the plaintext
+    DES_ecb_encrypt((const DES_cblock *)plaintext, (DES_cblock *)ciphertext, &ks, DES_ENCRYPT);
+}
+
+// Decrypts the ciphertext using DES
+void des_decrypt(const unsigned char *key, const unsigned char *ciphertext, unsigned char *plaintext) {
+    DES_key_schedule ks;
+    DES_cblock key2;
+
+    // Convert key to DES_cblock format
+    memcpy(key2, key, 8);
+
+    // Set up the key schedule
+    DES_set_key_unchecked(&key2, &ks);
+
+    // Decrypt the ciphertext
+    DES_ecb_encrypt((const DES_cblock *)ciphertext, (DES_cblock *)plaintext, &ks, DES_DECRYPT);
+}
+
+int main() {
+    // Example DES key and plaintext
+    unsigned char key[8] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef};
+    unsigned char plaintext[8] = "ABCDEFGH";
+    unsigned char ciphertext[8];
+    unsigned char decryptedtext[8];
+
+    // Initialize OpenSSL
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
+
+    printf("Plaintext: %s\n", plaintext);
+
+    // Encrypt the plaintext
+    des_encrypt(key, plaintext, ciphertext);
+
+    printf("Ciphertext: ");
+    for (int i = 0; i < 8; i++)
+        printf("%02x", ciphertext[i]);
+    printf("\n");
+
+    // Decrypt the ciphertext
+    des_decrypt(key, ciphertext, decryptedtext);
+
+    printf("Decrypted text: %s\n", decryptedtext);
+
+    // Cleanup
+    EVP_cleanup();
+    ERR_free_strings();
+
+    return 0;
+}
