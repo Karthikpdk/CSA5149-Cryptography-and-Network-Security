@@ -1,0 +1,66 @@
+#include <stdio.h>
+#include <ctype.h>
+
+#define ALPHABET_SIZE 26
+
+// Function to find the modular inverse of a modulo m
+int mod_inverse(int a, int m) {
+    a = a % m;
+    for (int x = 1; x < m; x++) {
+        if ((a * x) % m == 1) {
+            return x;
+        }
+    }
+    return -1; // No modular inverse exists
+}
+
+// Encrypts or decrypts a single character with the affine cipher
+char affine_cipher_char(char c, int a, int b, int encrypt) {
+    if (isalpha(c)) {
+        char base = isupper(c) ? 'A' : 'a';
+        int offset = c - base;
+        if (encrypt) {
+            // Encryption: C = (a * p + b) % 26
+            return base + ((a * offset + b) % ALPHABET_SIZE);
+        } else {
+            // Decryption: P = a_inv * (C - b) % 26
+            int a_inv = mod_inverse(a, ALPHABET_SIZE);
+            if (a_inv == -1) {
+                printf("No modular inverse exists for a = %d\n", a);
+                return c;
+            }
+            return base + ((a_inv * (offset - b + ALPHABET_SIZE)) % ALPHABET_SIZE);
+        }
+    }
+    return c;
+}
+
+// Encrypts or decrypts the entire text with the affine cipher
+void affine_cipher(const char *text, int a, int b, char *output, int encrypt) {
+    size_t i = 0;
+    while (text[i]) {
+        output[i] = affine_cipher_char(text[i], a, b, encrypt);
+        i++;
+    }
+    output[i] = '\0';
+}
+
+int main() {
+    // Example key values for the affine cipher
+    int a = 5; // a must be coprime with 26
+    int b = 8; // example shift value
+
+    const char *plaintext = "HELLO WORLD";
+    char encrypted_text[100];
+    char decrypted_text[100];
+
+    // Encrypt the plaintext
+    affine_cipher(plaintext, a, b, encrypted_text, 1);
+    printf("Encrypted text: %s\n", encrypted_text);
+
+    // Decrypt the ciphertext
+    affine_cipher(encrypted_text, a, b, decrypted_text, 0);
+    printf("Decrypted text: %s\n", decrypted_text);
+
+    return 0;
+}
