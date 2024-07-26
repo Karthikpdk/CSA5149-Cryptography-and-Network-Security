@@ -1,0 +1,137 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MATRIX_SIZE 2
+#define MOD 26
+
+// Function to perform matrix multiplication
+void matrix_multiply(int a[MATRIX_SIZE][MATRIX_SIZE], int b[MATRIX_SIZE][MATRIX_SIZE], int result[MATRIX_SIZE][MATRIX_SIZE]) {
+    for (int i = 0; i < MATRIX_SIZE; i++) {
+        for (int j = 0; j < MATRIX_SIZE; j++) {
+            result[i][j] = 0;
+            for (int k = 0; k < MATRIX_SIZE; k++) {
+                result[i][j] += a[i][k] * b[k][j];
+            }
+            result[i][j] %= MOD;
+        }
+    }
+}
+
+// Function to calculate the inverse of a 2x2 matrix modulo 26
+int mod_inverse(int a, int m) {
+    a = a % m;
+    for (int x = 1; x < m; x++) {
+        if ((a * x) % m == 1) {
+            return x;
+        }
+    }
+    return -1; // No modular inverse exists
+}
+
+void matrix_inverse(int matrix[MATRIX_SIZE][MATRIX_SIZE], int inverse[MATRIX_SIZE][MATRIX_SIZE]) {
+    int det = (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]) % MOD;
+    if (det < 0) det += MOD;
+    int det_inv = mod_inverse(det, MOD);
+
+    if (det_inv == -1) {
+        printf("Matrix is not invertible\n");
+        exit(1);
+    }
+
+    inverse[0][0] = (matrix[1][1] * det_inv) % MOD;
+    inverse[0][1] = (-matrix[0][1] * det_inv) % MOD;
+    inverse[1][0] = (-matrix[1][0] * det_inv) % MOD;
+    inverse[1][1] = (matrix[0][0] * det_inv) % MOD;
+
+    if (inverse[0][0] < 0) inverse[0][0] += MOD;
+    if (inverse[0][1] < 0) inverse[0][1] += MOD;
+    if (inverse[1][0] < 0) inverse[1][0] += MOD;
+    if (inverse[1][1] < 0) inverse[1][1] += MOD;
+}
+
+// Function to encrypt plaintext using the Hill cipher
+void hill_encrypt(int key[MATRIX_SIZE][MATRIX_SIZE], char *plaintext, char *ciphertext) {
+    int p[MATRIX_SIZE][MATRIX_SIZE];
+    int c[MATRIX_SIZE][MATRIX_SIZE];
+    int k[MATRIX_SIZE][MATRIX_SIZE];
+    int len = strlen(plaintext);
+
+    // Prepare the key matrix
+    memcpy(k, key, sizeof(k));
+
+    for (int i = 0; i < len; i += MATRIX_SIZE) {
+        // Prepare the plaintext matrix
+        for (int j = 0; j < MATRIX_SIZE; j++) {
+            p[j][0] = plaintext[i + j] - 'A';
+        }
+
+        // Encrypt
+        matrix_multiply(k, p, c);
+
+        // Store ciphertext
+        for (int j = 0; j < MATRIX_SIZE; j++) {
+            ciphertext[i + j] = c[j][0] + 'A';
+        }
+    }
+    ciphertext[len] = '\0';
+}
+
+// Function to decrypt ciphertext using the Hill cipher
+void hill_decrypt(int key[MATRIX_SIZE][MATRIX_SIZE], char *ciphertext, char *plaintext) {
+    int c[MATRIX_SIZE][MATRIX_SIZE];
+    int p[MATRIX_SIZE][MATRIX_SIZE];
+    int k[MATRIX_SIZE][MATRIX_SIZE];
+    int len = strlen(ciphertext);
+
+    // Prepare the key matrix
+    matrix_inverse(key, k);
+    memcpy(k, key, sizeof(k));
+
+    for (int i = 0; i < len; i += MATRIX_SIZE) {
+        // Prepare the ciphertext matrix
+        for (int j = 0; j < MATRIX_SIZE; j++) {
+            c[j][0] = ciphertext[i + j] - 'A';
+        }
+
+        // Decrypt
+        matrix_multiply(k, c, p);
+
+        // Store plaintext
+        for (int j = 0; j < MATRIX_SIZE; j++) {
+            plaintext[i + j] = p[j][0] + 'A';
+        }
+    }
+    plaintext[len] = '\0';
+}
+
+int main() {
+    int key[MATRIX_SIZE][MATRIX_SIZE] = {
+        {6, 24},
+        {1, 17}
+    };
+
+    char plaintext[] = "HELLO";
+    char ciphertext[100];
+    char decryptedtext[100];
+
+    printf("Original plaintext: %s\n", plaintext);
+
+    // Encrypt
+    hill_encrypt(key, plaintext, ciphertext);
+    printf("Encrypted ciphertext: %s\n", ciphertext);
+
+    // Decrypt
+    hill_decrypt(key, ciphertext, decryptedtext);
+    printf("Decrypted plaintext: %s\n", decryptedtext);
+
+    // Example of known plaintext attack (for demonstration)
+    printf("\n** Known Plaintext Attack **\n");
+    char known_plaintext[] = "HELLO";
+    char known_ciphertext[] = "GDDMC";
+
+    // Here, the program assumes the key is known
+    // To simulate the attack, one would typically solve for the key matrix using known pairs
+
+    return 0;
+}
